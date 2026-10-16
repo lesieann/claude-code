@@ -51,4 +51,6 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
 
     testImplementation(libs.junit)
+    // 單元測試用的 android.jar 只有空殼，org.json 需要真正的實作
+    testImplementation(libs.org.json)
 }

@@ -65,6 +65,7 @@ object EntryCodec {
                     .put("password", e.password)
                     .put("url", e.url)
                     .put("notes", e.notes)
+                    .put("category", e.category)
                     .put("updatedAt", e.updatedAt)
             )
         }
@@ -81,6 +82,8 @@ object EntryCodec {
                 password = o.optString("password"),
                 url = o.optString("url"),
                 notes = o.optString("notes"),
+                // 舊版保險箱沒有這個欄位，讀進來就是未分類
+                category = o.optString("category").trim(),
                 updatedAt = o.optLong("updatedAt"),
             )
         }

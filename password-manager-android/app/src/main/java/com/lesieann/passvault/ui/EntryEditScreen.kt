@@ -1,6 +1,12 @@
 package com.lesieann.passvault.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.FilterChip
+import com.lesieann.passvault.data.Categories
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,11 +55,13 @@ fun EntryEditScreen(vm: VaultViewModel, entryId: String?) {
     var password by remember { mutableStateOf(original.password) }
     var url by remember { mutableStateOf(original.url) }
     var notes by remember { mutableStateOf(original.notes) }
+    var category by remember { mutableStateOf(original.category) }
+    val suggestions = remember(vm.entries) { Categories.suggestions(vm.entries) }
     var showGenerator by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
 
-    val current = original.copy(title = title.trim(), username = username, password = password, url = url.trim(), notes = notes)
+    val current = original.copy(title = title.trim(), username = username, password = password, url = url.trim(), notes = notes, category = category.trim())
     val dirty = current.copy(updatedAt = 0) != original.copy(updatedAt = 0)
     val goBack: () -> Unit = {
         if (dirty) {
@@ -120,6 +128,29 @@ fun EntryEditScreen(vm: VaultViewModel, entryId: String?) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
                 modifier = Modifier.fillMaxWidth(),
             )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                category, { category = it },
+                label = { Text("分類") },
+                placeholder = { Text(Categories.UNCATEGORIZED_LABEL) },
+                singleLine = true,
+                trailingIcon = {
+                    if (category.isNotEmpty()) IconButton(onClick = { category = "" }) { Icon(Icons.Filled.Clear, "清除分類") }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                items(suggestions, key = { it }) { c ->
+                    FilterChip(
+                        selected = category.trim() == c,
+                        onClick = { category = if (category.trim() == c) "" else c },
+                        label = { Text(c) },
+                    )
+                }
+            }
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(notes, { notes = it }, label = { Text("備註") }, minLines = 3, modifier = Modifier.fillMaxWidth())
             if (entryId != null) {

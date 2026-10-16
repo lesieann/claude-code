@@ -134,7 +134,7 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
 
     fun save(entry: VaultEntry) {
         if (entry.title.isBlank()) { message = "請輸入名稱"; return }
-        val updated = entry.copy(updatedAt = System.currentTimeMillis())
+        val updated = entry.copy(category = entry.category.trim(), updatedAt = System.currentTimeMillis())
         val list = entries.filterNot { it.id == entry.id } + updated
         if (persist(list)) screen = Screen.List
     }
@@ -144,6 +144,23 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
             screen = Screen.List
             message = "已刪除"
         }
+    }
+
+    // ---- 分類 ----
+
+    /** 把某個分類下的所有項目改到新名稱；新名稱已存在時等於合併兩個分類。 */
+    fun renameCategory(old: String, new: String) {
+        val name = new.trim()
+        if (name.isEmpty()) { message = "請輸入分類名稱"; return }
+        if (name == old) return
+        val list = entries.map { if (it.category == old) it.copy(category = name) else it }
+        if (persist(list)) message = "已將「$old」改為「$name」"
+    }
+
+    /** 刪除分類只會把項目移到「未分類」，不會刪除項目本身。 */
+    fun removeCategory(name: String) {
+        val list = entries.map { if (it.category == name) it.copy(category = "") else it }
+        if (persist(list)) message = "已刪除分類「$name」，項目已移到未分類"
     }
 
     // ---- 設定 ----

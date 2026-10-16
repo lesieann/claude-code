@@ -9,5 +9,7 @@ data class VaultEntry(
     val password: String = "",
     val url: String = "",
     val notes: String = "",
+    /** 空字串代表「未分類」。 */
+    val category: String = "",
     val updatedAt: Long = System.currentTimeMillis(),
 )

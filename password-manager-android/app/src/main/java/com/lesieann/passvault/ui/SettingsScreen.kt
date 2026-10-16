@@ -1,6 +1,12 @@
 package com.lesieann.passvault.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import com.lesieann.passvault.data.Categories
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +53,8 @@ fun SettingsScreen(vm: VaultViewModel) {
     var new by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var confirmRestore by remember { mutableStateOf(false) }
+    var editingCategory by remember { mutableStateOf<String?>(null) }
+    val categories = remember(vm.entries) { Categories.inUse(vm.entries) }
     val export = rememberBackupExporter(vm)
     val restore = rememberBackupImporter(vm)
 
@@ -98,6 +106,23 @@ fun SettingsScreen(vm: VaultViewModel) {
             }
 
             Divider()
+            Section("管理分類")
+            if (categories.isEmpty()) {
+                Hint("還沒有使用任何分類。編輯項目時可以選擇或輸入分類。")
+            } else {
+                Hint("點分類可以改名或刪除。改成已有的名稱會合併兩個分類。")
+                Spacer(Modifier.height(4.dp))
+                categories.forEach { c ->
+                    val count = vm.entries.count { it.category == c }
+                    ListItem(
+                        headlineContent = { Text(c) },
+                        trailingContent = { Text("$count 筆") },
+                        modifier = Modifier.clickable { editingCategory = c },
+                    )
+                }
+            }
+
+            Divider()
             Section("變更主密碼")
             PasswordField(current, { current = it }, "目前的主密碼")
             Spacer(Modifier.height(8.dp))
@@ -136,6 +161,14 @@ fun SettingsScreen(vm: VaultViewModel) {
         }
     }
 
+    editingCategory?.let { name ->
+        CategoryDialog(
+            name = name,
+            onRename = { editingCategory = null; vm.renameCategory(name, it) },
+            onDelete = { editingCategory = null; vm.removeCategory(name) },
+            onDismiss = { editingCategory = null },
+        )
+    }
     if (confirmRestore) {
         ConfirmDialog(
             title = "從備份還原？",
@@ -145,6 +178,50 @@ fun SettingsScreen(vm: VaultViewModel) {
             onDismiss = { confirmRestore = false },
         )
     }
+}
+
+@Composable
+private fun CategoryDialog(
+    name: String,
+    onRename: (String) -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var newName by remember { mutableStateOf(name) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    if (confirmDelete) {
+        ConfirmDialog(
+            title = "刪除分類「$name」？",
+            text = "這個分類的項目不會被刪除，會移到「${Categories.UNCATEGORIZED_LABEL}」。",
+            confirmLabel = "刪除",
+            onConfirm = onDelete,
+            onDismiss = { confirmDelete = false },
+        )
+        return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("編輯分類") },
+        text = {
+            OutlinedTextField(
+                newName, { newName = it },
+                label = { Text("分類名稱") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onRename(newName) }, enabled = newName.isNotBlank()) { Text("儲存") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { confirmDelete = true }) {
+                    Text("刪除分類", color = MaterialTheme.colorScheme.error)
+                }
+                TextButton(onClick = onDismiss) { Text("取消") }
+            }
+        },
+    )
 }
 
 @Composable
