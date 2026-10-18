@@ -13,6 +13,7 @@ import com.lesieann.passvault.data.EntryCodec
 import com.lesieann.passvault.data.VaultEntry
 import com.lesieann.passvault.data.VaultFile
 import com.lesieann.passvault.data.VaultRepository
+import com.lesieann.passvault.util.PasswordCsvImporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -103,6 +104,7 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun lock() {
+        pendingImport = null
         key?.fill(0)
         key = null
         vault = null
@@ -115,8 +117,14 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
         backgroundedAt = SystemClock.elapsedRealtime()
     }
 
+    /** App 自己開的系統檔案選擇器顯示期間不自動上鎖，回來時呼叫 [endFilePicker]。 */
+    private var filePickerOpen = false
+
+    fun beginFilePicker() { filePickerOpen = true }
+    fun endFilePicker() { filePickerOpen = false }
+
     fun onForeground() {
-        if (key != null && backgroundedAt != 0L &&
+        if (key != null && backgroundedAt != 0L && !filePickerOpen &&
             SystemClock.elapsedRealtime() - backgroundedAt > AUTO_LOCK_MS
         ) lock()
         backgroundedAt = 0L
@@ -232,6 +240,39 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
             open(k, v, list)
             message = "已從備份還原 ${list.size} 筆資料"
         }
+    }
+
+    // ---- 從 Google 密碼管理工具匯入 ----
+
+    /** 等待使用者確認的匯入內容。 */
+    class PendingImport(val entries: List<VaultEntry>, val duplicates: Int, val skippedRows: Int)
+
+    var pendingImport: PendingImport? by mutableStateOf(null)
+        private set
+
+    fun prepareCsvImport(bytes: ByteArray) {
+        if (key == null) { message = "保險箱已上鎖，請解鎖後再匯入"; return }
+        runCatching {
+            val result = PasswordCsvImporter.parse(String(bytes, Charsets.UTF_8))
+            val fresh = PasswordCsvImporter.withoutDuplicates(result.entries, entries)
+            if (fresh.isEmpty()) {
+                message = if (result.entries.isEmpty()) "檔案裡沒有可匯入的密碼" else "全部 ${result.entries.size} 筆都已經在保險箱裡了"
+            } else {
+                pendingImport = PendingImport(fresh, result.entries.size - fresh.size, result.skippedRows)
+            }
+        }.onFailure { message = "無法讀取：${it.message}" }
+    }
+
+    fun confirmCsvImport(category: String) {
+        val pending = pendingImport ?: return
+        pendingImport = null
+        val now = System.currentTimeMillis()
+        val imported = pending.entries.map { it.copy(category = category.trim(), updatedAt = now) }
+        if (persist(entries + imported)) message = "已匯入 ${imported.size} 筆密碼。記得刪除手機裡的 CSV 檔，它沒有加密。"
+    }
+
+    fun cancelCsvImport() {
+        pendingImport = null
     }
 
     // ---- 內部 ----

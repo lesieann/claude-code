@@ -57,6 +57,7 @@ fun SettingsScreen(vm: VaultViewModel) {
     val categories = remember(vm.entries) { Categories.inUse(vm.entries) }
     val export = rememberBackupExporter(vm)
     val restore = rememberBackupImporter(vm)
+    val importCsv = rememberCsvImporter(vm)
 
     BackHandler(onBack = vm::backToList)
 
@@ -142,6 +143,17 @@ fun SettingsScreen(vm: VaultViewModel) {
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("變更主密碼") }
             Hint("變更後需要重新啟用生物辨識。", Modifier.padding(top = 4.dp))
+
+            Divider()
+            Section("從 Google 密碼管理工具匯入")
+            Hint(
+                "1. 在手機或電腦開啟 Google 密碼管理工具（passwords.google.com，或 Chrome 設定 → 密碼管理工具）\n" +
+                    "2. 設定 → 匯出密碼 → 下載 CSV 檔\n" +
+                    "3. 回到這裡選擇那個 CSV 檔。已經存在的密碼會自動略過。",
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = importCsv, modifier = Modifier.fillMaxWidth()) { Text("選擇 CSV 檔匯入") }
+            Hint("CSV 檔裡的密碼沒有加密，匯入完成後請把它刪除。", Modifier.padding(top = 4.dp))
 
             Divider()
             Section("備份")

@@ -45,6 +45,7 @@ fun rememberBackupImporter(vm: VaultViewModel): () -> Unit {
 fun rememberBackupExporter(vm: VaultViewModel): () -> Unit {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        vm.endFilePicker()
         if (uri == null) return@rememberLauncherForActivityResult
         val bytes = vm.exportBackup() ?: run {
             vm.message = "保險箱已上鎖，請解鎖後再匯出"
@@ -57,6 +58,24 @@ fun rememberBackupExporter(vm: VaultViewModel): () -> Unit {
     }
     return {
         val date = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
+        vm.beginFilePicker()
         launcher.launch("passvault-backup-$date.json")
+    }
+}
+
+/** 選擇 Google 密碼管理工具／Chrome 匯出的 CSV 檔，解析後交給 ViewModel 顯示確認畫面。 */
+@Composable
+fun rememberCsvImporter(vm: VaultViewModel): () -> Unit {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        vm.endFilePicker()
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching { context.contentResolver.openInputStream(uri)!!.use { it.readBytes() } }
+            .onSuccess(vm::prepareCsvImport)
+            .onFailure { vm.message = "無法讀取檔案" }
+    }
+    return {
+        vm.beginFilePicker()
+        launcher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "application/octet-stream"))
     }
 }

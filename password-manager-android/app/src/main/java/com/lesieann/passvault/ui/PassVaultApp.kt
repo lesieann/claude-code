@@ -38,6 +38,9 @@ fun PassVaultApp(vm: VaultViewModel) {
             is Screen.Edit -> EntryEditScreen(vm, screen.entryId)
             Screen.Settings -> SettingsScreen(vm)
         }
+        vm.pendingImport?.let { pending ->
+            CsvImportDialog(pending, onConfirm = vm::confirmCsvImport, onDismiss = vm::cancelCsvImport)
+        }
         SnackbarHost(
             snackbar,
             Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding(),

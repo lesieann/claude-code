@@ -12,6 +12,7 @@
 - **安全剪貼簿**：複製的密碼會標記為敏感（Android 13+ 不顯示預覽），30 秒後自動清除。
 - **自動上鎖**：App 進入背景超過 30 秒即上鎖；也可手動上鎖。
 - **防窺**：`FLAG_SECURE` 禁止截圖/錄影，最近使用的 App 畫面也不會顯示內容。
+- **從 Google 匯入**：讀取 Google 密碼管理工具／Chrome 匯出的 CSV 檔（`name,url,username,password,note`），依標題列對應欄位；已存在的密碼自動略過，可指定匯入到哪個分類。
 - **加密備份**：可匯出/還原以主密碼加密的備份檔（透過系統檔案選擇器）。
 - **無網路權限**，且停用系統雲端備份與裝置轉移，資料不會離開裝置（除非你自己匯出）。
 
@@ -24,7 +25,7 @@
 ```bash
 cd password-manager-android
 ./gradlew assembleDebug          # 產生 app/build/outputs/apk/debug/app-debug.apk
-./gradlew testDebugUnitTest      # 單元測試（加密、密碼產生器、資料格式、分類）
+./gradlew testDebugUnitTest      # 單元測試（加密、密碼產生器、資料格式、分類、CSV 匯入）
 ```
 
 也可以直接用 Android Studio 開啟 `password-manager-android/` 資料夾。
