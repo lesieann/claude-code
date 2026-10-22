@@ -79,26 +79,21 @@ fun SettingsScreen(vm: VaultViewModel) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
         ) {
-            Section("生物辨識")
+            Section("指紋解鎖")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("使用指紋 / 臉部解鎖")
-                    Hint(if (biometricAvailable) "金鑰保存在 Android Keystore，新增生物辨識資料後需重新啟用" else "此裝置未設定強生物辨識")
+                    Text("使用指紋解鎖")
+                    Hint(
+                        if (biometricAvailable) "金鑰保存在 Android Keystore。手機新增指紋後需要重新啟用。"
+                        else "請先到手機的「設定 → 安全性」新增指紋，再回來開啟。",
+                    )
                 }
                 Switch(
                     checked = vm.biometricEnabled,
                     enabled = biometricAvailable,
                     onCheckedChange = { on ->
                         if (on) {
-                            runCatching { vm.biometricEnrollCipher() }
-                                .onSuccess { cipher ->
-                                    BiometricAuth.authenticate(
-                                        activity, "啟用生物辨識解鎖", cipher,
-                                        onSuccess = vm::completeBiometricEnroll,
-                                        onError = { vm.message = it },
-                                    )
-                                }
-                                .onFailure { vm.message = "無法建立金鑰：${it.message}" }
+                            BiometricAuth.enroll(activity, vm)
                         } else {
                             vm.disableBiometric()
                         }

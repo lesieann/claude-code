@@ -119,7 +119,7 @@ fun UnlockScreen(vm: VaultViewModel) {
             OutlinedButton(onClick = { startBiometric() }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.Fingerprint, null)
                 Spacer(Modifier.size(8.dp))
-                Text("使用生物辨識")
+                Text("使用指紋解鎖")
             }
         }
     }

@@ -31,6 +31,8 @@ sealed interface Screen {
 
 class VaultViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = VaultRepository(app)
+    // 只存「不要再問」這類非敏感的偏好設定
+    private val prefs = app.getSharedPreferences("passvault_prefs", android.content.Context.MODE_PRIVATE)
     private val biometricStore = BiometricKeyStore()
 
     var screen: Screen by mutableStateOf(if (repo.exists()) Screen.Locked else Screen.Setup)
@@ -65,7 +67,7 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
                 k to seal(k, salt, VaultCrypto.DEFAULT_ITERATIONS, emptyList(), biometric = null)
             }
             repo.write(v)
-            open(k, v, emptyList())
+            open(k, v, emptyList(), viaPassword = true)
         }
     }
 
@@ -77,7 +79,7 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
                 val k = VaultCrypto.deriveKey(password.toCharArray(), v.salt, v.iterations)
                 k to EntryCodec.decode(VaultCrypto.decrypt(k, v.sealed))
             }
-            open(k, v, list)
+            open(k, v, list, viaPassword = true)
         }
     }
 
@@ -105,6 +107,7 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
 
     fun lock() {
         pendingImport = null
+        offerBiometric = false
         key?.fill(0)
         key = null
         vault = null
@@ -173,6 +176,15 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- 設定 ----
 
+    /** 解鎖後是否要跳出「啟用指紋解鎖？」的詢問。 */
+    var offerBiometric by mutableStateOf(false)
+        private set
+
+    fun dismissBiometricOffer(neverAskAgain: Boolean) {
+        offerBiometric = false
+        if (neverAskAgain) prefs.edit().putBoolean(PREF_NO_BIOMETRIC_OFFER, true).apply()
+    }
+
     fun biometricEnrollCipher(): Cipher = biometricStore.newEncryptCipher()
 
     fun completeBiometricEnroll(cipher: Cipher) {
@@ -184,7 +196,8 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
             repo.write(nv)
             vault = nv
             biometricEnabled = true
-            message = "已啟用生物辨識解鎖"
+            offerBiometric = false
+            message = "已啟用指紋解鎖，下次打開 App 就能用指紋解鎖"
         }.onFailure { message = "啟用失敗：${it.message}" }
     }
 
@@ -237,7 +250,7 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
             biometricStore.deleteKey()
             biometricEnabled = false
             key?.fill(0)
-            open(k, v, list)
+            open(k, v, list, viaPassword = true)
             message = "已從備份還原 ${list.size} 筆資料"
         }
     }
@@ -277,12 +290,14 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- 內部 ----
 
-    private fun open(k: ByteArray, v: VaultFile, list: List<VaultEntry>) {
+    private fun open(k: ByteArray, v: VaultFile, list: List<VaultEntry>, viaPassword: Boolean = false) {
         key = k
         vault = v
         entries = list
         biometricEnabled = v.biometric != null
         screen = Screen.List
+        // 用主密碼解鎖、還沒開指紋、也沒按過「不要再問」時，主動詢問要不要啟用
+        offerBiometric = viaPassword && !biometricEnabled && !prefs.getBoolean(PREF_NO_BIOMETRIC_OFFER, false)
     }
 
     private fun persist(list: List<VaultEntry>): Boolean {
@@ -341,5 +356,6 @@ class VaultViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         const val AUTO_LOCK_MS = 30_000L
         const val MIN_MASTER_LENGTH = 8
+        private const val PREF_NO_BIOMETRIC_OFFER = "no_biometric_offer"
     }
 }

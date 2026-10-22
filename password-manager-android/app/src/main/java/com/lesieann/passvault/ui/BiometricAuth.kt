@@ -6,6 +6,7 @@ import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.lesieann.passvault.VaultViewModel
 import javax.crypto.Cipher
 
 object BiometricAuth {
@@ -42,5 +43,18 @@ object BiometricAuth {
             .setAllowedAuthenticators(BIOMETRIC_STRONG)
             .build()
         prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
+    }
+
+    /** 啟用指紋解鎖：建立 Keystore 金鑰，通過指紋驗證後包裝保險箱金鑰。 */
+    fun enroll(activity: FragmentActivity, vm: VaultViewModel) {
+        runCatching { vm.biometricEnrollCipher() }
+            .onSuccess { cipher ->
+                authenticate(
+                    activity, "啟用指紋解鎖", cipher,
+                    onSuccess = vm::completeBiometricEnroll,
+                    onError = { vm.message = it },
+                )
+            }
+            .onFailure { vm.message = "無法建立金鑰：${it.message}" }
     }
 }

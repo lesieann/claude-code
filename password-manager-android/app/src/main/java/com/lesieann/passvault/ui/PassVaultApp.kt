@@ -1,6 +1,15 @@
 package com.lesieann.passvault.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -38,6 +47,9 @@ fun PassVaultApp(vm: VaultViewModel) {
             is Screen.Edit -> EntryEditScreen(vm, screen.entryId)
             Screen.Settings -> SettingsScreen(vm)
         }
+        if (vm.offerBiometric && vm.screen == Screen.List && vm.pendingImport == null) {
+            BiometricOfferDialog(vm)
+        }
         vm.pendingImport?.let { pending ->
             CsvImportDialog(pending, onConfirm = vm::confirmCsvImport, onDismiss = vm::cancelCsvImport)
         }
@@ -56,4 +68,29 @@ fun PassVaultApp(vm: VaultViewModel) {
             ) { CircularProgressIndicator() }
         }
     }
+}
+
+@Composable
+private fun BiometricOfferDialog(vm: VaultViewModel) {
+    val activity = LocalContext.current as FragmentActivity
+    // 手機沒有設定指紋（或只有不夠安全的臉部解鎖）就不問
+    if (!remember { BiometricAuth.isAvailable(activity) }) return
+    AlertDialog(
+        onDismissRequest = { vm.dismissBiometricOffer(neverAskAgain = false) },
+        icon = { Icon(Icons.Filled.Fingerprint, null) },
+        title = { Text("用指紋解鎖？") },
+        text = { Text("之後打開 App 只要按指紋就能解鎖，不用每次輸入主密碼。主密碼仍然可以使用，也可以隨時在設定裡關閉。") },
+        confirmButton = {
+            TextButton(onClick = {
+                vm.dismissBiometricOffer(neverAskAgain = false)
+                BiometricAuth.enroll(activity, vm)
+            }) { Text("啟用") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { vm.dismissBiometricOffer(neverAskAgain = true) }) { Text("不要再問") }
+                TextButton(onClick = { vm.dismissBiometricOffer(neverAskAgain = false) }) { Text("以後再說") }
+            }
+        },
+    )
 }
